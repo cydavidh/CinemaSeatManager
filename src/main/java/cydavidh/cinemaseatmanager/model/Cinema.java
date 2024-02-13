@@ -1,9 +1,7 @@
 package cydavidh.cinemaseatmanager.model;
 
-import cydavidh.cinemaseatmanager.dto.*;
-import cydavidh.cinemaseatmanager.exception.OutOfBoundsException;
-import cydavidh.cinemaseatmanager.exception.TicketAlreadyPurchasedException;
-import cydavidh.cinemaseatmanager.exception.WrongTokenException;
+import cydavidh.cinemaseatmanager.dto.CinemaResponse;
+import cydavidh.cinemaseatmanager.dto.SeatResponse;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,18 +10,18 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Cinema {
-    private int rows;
-    private int cols;
-    private int income;
-    private Seat[][] seats;
+    private final int rows;
+    private final int cols;
+    private volatile int income;
+    private final Seat[][] seats;
 
-    private Map<UUID, Seat> tokens;
+    private final Map<UUID, Seat> tokens;
 
     public Cinema(int rows, int cols) {
         this.rows = rows;
         this.cols = cols;
         this.income = 0;
-        seats = new Seat[rows][cols];
+        this.seats = new Seat[rows][cols];
         this.tokens = new ConcurrentHashMap<>();
 
         for (int i = 0; i < rows; i++) {
@@ -41,13 +39,42 @@ public class Cinema {
         return cols;
     }
 
-    public CinemaResponse getSeats() {
+    public int getIncome() {
+        synchronized (this) {
+            return income;
+        }
+    }
+
+    public void increaseIncome(int amount) {
+        synchronized (this) {
+            this.income += amount;
+        }
+    }
+
+    public void decreaseIncome(int amount) {
+        synchronized (this) {
+            this.income -= amount;
+        }
+    }
+
+    public Map<UUID, Seat> getTokens() {
+        return tokens;
+    }
+
+    public Seat[][] getSeats() {
+        return seats;
+    }
+
+    public Seat getSeat(int row, int col) {
+        return seats[row][col];
+    }
+
+    public CinemaResponse getAvailableSeats() {
         List<SeatResponse> availableSeats = new ArrayList<>();
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 Seat seat = seats[i][j];
                 if (seat.isAvailable()) {
-
                     availableSeats.add(new SeatResponse(seat.getRow() + 1, seat.getColumn() + 1, seat.getPrice()));
                 }
             }
@@ -55,39 +82,6 @@ public class Cinema {
         return new CinemaResponse(rows, cols, availableSeats);
     }
 
-    public PurchaseResponse purchaseSeat(int row, int col) {
-        if (row < 0 || row >= rows || col < 0 || col >= cols) {
-            throw new OutOfBoundsException("The number of a row or a column is out of bounds!");
-        }
-        Seat seatToPurchase = seats[row][col];
-        if (!seatToPurchase.isAvailable()) {
-            throw new TicketAlreadyPurchasedException("The ticket has been already purchased!");
-        }
-        seatToPurchase.setAvailable(false);
-        UUID uuid = UUID.randomUUID();
-        tokens.put(uuid, seatToPurchase);
-        income += seatToPurchase.getPrice();
-        return new PurchaseResponse(uuid, new SeatResponse(row + 1, col + 1, seatToPurchase.getPrice()));
-    }
-
-
-    public ReturnResponse returnSeat(UUID uuid) {
-        Seat seatToRefund = tokens.get(uuid);
-        if (seatToRefund == null) {
-            throw new WrongTokenException("Wrong token!");
-        }
-        seatToRefund.setAvailable(true);
-        tokens.remove(uuid);
-        SeatResponse seatResponse = new SeatResponse(seatToRefund.getRow() + 1, seatToRefund.getColumn() + 1, seatToRefund.getPrice());
-        ReturnResponse returnResponse = new ReturnResponse(seatResponse);
-        income -= seatToRefund.getPrice();
-        return returnResponse;
-    }
-
-
-    public StatResponse getStats() {
-        int available = rows*cols - tokens.size();
-        int purchased = tokens.size();
-        return new StatResponse(income, available, purchased);
-    }
+    // Optionally, include helper methods for direct seat access if needed by the service layer,
+    // but ensure these are used in a thread-safe manner (possibly managed within the service layer).
 }
