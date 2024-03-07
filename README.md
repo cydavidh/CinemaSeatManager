@@ -9,3 +9,12 @@ I addressed the multithreading concerns by ensuring thread-safe operations for c
 I also added custom exception handling and Data Transfer Objects (DTOs) to ensure efficient data handling and client-server communication.
 
 The application includes JUnit tests to verify functionalities such as seat bookings, ticket returns, and theatre statistics, ensuring its reliability.
+
+Controller Screenshot
+
+<img src="https://i.imgur.com/Z9RQDWf.png" width="600"/>
+
+Swagger: Api endpoints
+
+<img src="https://i.imgur.com/L9JC6Pr.png" width="600"/>
+
